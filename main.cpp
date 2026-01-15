@@ -61,6 +61,39 @@ bool isBoardFull() {
   return true;
 }
 
+int evaluateBoard() {
+  if (checkWin(AI))
+    return 1000;
+  if (checkWin(HUMAN))
+    return -1000;
+  return 0;
+}
+
+int getSimpleAIMove() {
+  // Simple AI: prefer center, then any valid move
+  int center = COLS / 2;
+
+  // Try center first
+  if (isValidMove(center))
+    return center;
+
+  // Try left of center
+  if (center > 0 && isValidMove(center - 1))
+    return center - 1;
+
+  // Try right of center
+  if (center < COLS - 1 && isValidMove(center + 1))
+    return center + 1;
+
+  // Find any valid move
+  for (int c = 0; c < COLS; c++) {
+    if (isValidMove(c))
+      return c;
+  }
+
+  return 0;
+}
+
 void resetBoard() {
   for (int r = 0; r < ROWS; r++)
     for (int c = 0; c < COLS; c++)
@@ -120,24 +153,20 @@ int main() {
       }
     }
 
-    // Simple AI turn
+    // AI turn with simple strategy
     if (!playerTurn && !gameOver) {
-      for (int c = 0; c < COLS; c++) {
-        if (isValidMove(c)) {
-          int row = getNextRow(c);
-          dropPiece(row, c, AI);
+      int col = getSimpleAIMove();
+      int row = getNextRow(col);
+      dropPiece(row, col, AI);
 
-          if (checkWin(AI)) {
-            gameOver = true;
-            message = "AI Wins! Click R to Restart, Q to Quit";
-          } else if (isBoardFull()) {
-            gameOver = true;
-            message = "Draw! Click R to Restart, Q to Quit";
-          }
-          break;
-        }
-      }
-      playerTurn = true;
+      if (checkWin(AI)) {
+        gameOver = true;
+        message = "AI Wins! Click R to Restart, Q to Quit";
+      } else if (isBoardFull()) {
+        gameOver = true;
+        message = "Draw! Click R to Restart, Q to Quit";
+      } else
+        playerTurn = true;
     }
 
     window.clear(sf::Color::Blue);
