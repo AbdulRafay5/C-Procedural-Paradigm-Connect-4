@@ -1,5 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include <limits>
 #include <vector>
 
 constexpr int ROWS = 6;
@@ -9,6 +10,7 @@ constexpr int WINDOW_WIDTH = COLS * CELL_SIZE;
 constexpr int WINDOW_HEIGHT = (ROWS + 2) * CELL_SIZE;
 
 enum Player { NONE = 0, HUMAN = 1, AI = 2 };
+
 std::vector<std::vector<int>> board(ROWS, std::vector<int>(COLS, NONE));
 
 bool isValidMove(int col) { return board[0][col] == NONE; }
@@ -69,29 +71,54 @@ int evaluateBoard() {
   return 0;
 }
 
-int getSimpleAIMove() {
-  // Simple AI: prefer center, then any valid move
-  int center = COLS / 2;
+int minimax(int depth, bool maximizing) {
+  int score = evaluateBoard();
+  if (score == 1000 || score == -1000 || depth == 0 || isBoardFull())
+    return score;
 
-  // Try center first
-  if (isValidMove(center))
-    return center;
-
-  // Try left of center
-  if (center > 0 && isValidMove(center - 1))
-    return center - 1;
-
-  // Try right of center
-  if (center < COLS - 1 && isValidMove(center + 1))
-    return center + 1;
-
-  // Find any valid move
-  for (int c = 0; c < COLS; c++) {
-    if (isValidMove(c))
-      return c;
+  if (maximizing) {
+    int maxEval = std::numeric_limits<int>::min();
+    for (int c = 0; c < COLS; c++) {
+      if (isValidMove(c)) {
+        int r = getNextRow(c);
+        board[r][c] = AI;
+        int eval = minimax(depth - 1, false);
+        board[r][c] = NONE;
+        maxEval = std::max(maxEval, eval);
+      }
+    }
+    return maxEval;
+  } else {
+    int minEval = std::numeric_limits<int>::max();
+    for (int c = 0; c < COLS; c++) {
+      if (isValidMove(c)) {
+        int r = getNextRow(c);
+        board[r][c] = HUMAN;
+        int eval = minimax(depth - 1, true);
+        board[r][c] = NONE;
+        minEval = std::min(minEval, eval);
+      }
+    }
+    return minEval;
   }
+}
 
-  return 0;
+int getBestMove() {
+  int bestScore = std::numeric_limits<int>::min();
+  int bestCol = 0;
+  for (int c = 0; c < COLS; c++) {
+    if (isValidMove(c)) {
+      int r = getNextRow(c);
+      board[r][c] = AI;
+      int score = minimax(5, false);
+      board[r][c] = NONE;
+      if (score > bestScore) {
+        bestScore = score;
+        bestCol = c;
+      }
+    }
+  }
+  return bestCol;
 }
 
 void resetBoard() {
@@ -126,7 +153,7 @@ int main() {
           event.mouseButton.button == sf::Mouse::Left && playerTurn) {
 
         int col = event.mouseButton.x / CELL_SIZE;
-        if (col >= 0 && col < COLS && isValidMove(col)) {
+        if (isValidMove(col)) {
           int row = getNextRow(col);
           dropPiece(row, col, HUMAN);
 
@@ -153,9 +180,8 @@ int main() {
       }
     }
 
-    // AI turn with simple strategy
     if (!playerTurn && !gameOver) {
-      int col = getSimpleAIMove();
+      int col = getBestMove();
       int row = getNextRow(col);
       dropPiece(row, col, AI);
 
