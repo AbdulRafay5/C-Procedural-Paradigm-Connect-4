@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <iostream>
 #include <vector>
 
 constexpr int ROWS = 6;
@@ -21,6 +22,45 @@ int getNextRow(int col) {
 
 void dropPiece(int row, int col, int player) { board[row][col] = player; }
 
+bool checkWin(int player) {
+  // Horizontal
+  for (int r = 0; r < ROWS; r++)
+    for (int c = 0; c < COLS - 3; c++)
+      if (board[r][c] == player && board[r][c + 1] == player &&
+          board[r][c + 2] == player && board[r][c + 3] == player)
+        return true;
+
+  // Vertical
+  for (int c = 0; c < COLS; c++)
+    for (int r = 0; r < ROWS - 3; r++)
+      if (board[r][c] == player && board[r + 1][c] == player &&
+          board[r + 2][c] == player && board[r + 3][c] == player)
+        return true;
+
+  // Diagonal /
+  for (int r = 3; r < ROWS; r++)
+    for (int c = 0; c < COLS - 3; c++)
+      if (board[r][c] == player && board[r - 1][c + 1] == player &&
+          board[r - 2][c + 2] == player && board[r - 3][c + 3] == player)
+        return true;
+
+  // Diagonal \
+    for (int r = 0; r < ROWS - 3; r++)
+  for (int c = 0; c < COLS - 3; c++)
+    if (board[r][c] == player && board[r + 1][c + 1] == player &&
+        board[r + 2][c + 2] == player && board[r + 3][c + 3] == player)
+      return true;
+
+  return false;
+}
+
+bool isBoardFull() {
+  for (int c = 0; c < COLS; c++)
+    if (board[0][c] == NONE)
+      return false;
+  return true;
+}
+
 void resetBoard() {
   for (int r = 0; r < ROWS; r++)
     for (int c = 0; c < COLS; c++)
@@ -32,8 +72,16 @@ int main() {
                           "Connect 4 - Player vs AI");
   window.setFramerateLimit(60);
 
+  sf::Font font;
+  if (!font.loadFromFile(
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")) {
+    std::cerr << "Font not found!" << std::endl;
+    return -1;
+  }
+
   bool playerTurn = true;
   bool gameOver = false;
+  std::string message = "";
 
   while (window.isOpen()) {
     sf::Event event;
@@ -48,18 +96,44 @@ int main() {
         if (col >= 0 && col < COLS && isValidMove(col)) {
           int row = getNextRow(col);
           dropPiece(row, col, HUMAN);
-          playerTurn = false;
+
+          if (checkWin(HUMAN)) {
+            gameOver = true;
+            message = "You Win! Click R to Restart, Q to Quit";
+          } else if (isBoardFull()) {
+            gameOver = true;
+            message = "Draw! Click R to Restart, Q to Quit";
+          } else
+            playerTurn = false;
+        }
+      }
+
+      if (gameOver && event.type == sf::Event::KeyPressed) {
+        if (event.key.code == sf::Keyboard::R) {
+          resetBoard();
+          gameOver = false;
+          playerTurn = true;
+          message = "";
+        } else if (event.key.code == sf::Keyboard::Q) {
+          window.close();
         }
       }
     }
 
-    // Simple AI turn (just for testing)
+    // Simple AI turn
     if (!playerTurn && !gameOver) {
-      // Simple AI: pick first available column
       for (int c = 0; c < COLS; c++) {
         if (isValidMove(c)) {
           int row = getNextRow(c);
           dropPiece(row, c, AI);
+
+          if (checkWin(AI)) {
+            gameOver = true;
+            message = "AI Wins! Click R to Restart, Q to Quit";
+          } else if (isBoardFull()) {
+            gameOver = true;
+            message = "Draw! Click R to Restart, Q to Quit";
+          }
           break;
         }
       }
@@ -83,6 +157,17 @@ int main() {
 
         window.draw(piece);
       }
+    }
+
+    // Draw message
+    if (!message.empty()) {
+      sf::Text text;
+      text.setFont(font);
+      text.setString(message);
+      text.setCharacterSize(24);
+      text.setFillColor(sf::Color::White);
+      text.setPosition(10, 10);
+      window.draw(text);
     }
 
     window.display();
